@@ -1,0 +1,14 @@
+###!/bin/sh
+#
+#   Rename this file to ppp_on_boot and pppd will be fired up as
+#   soon as the system comes up, connecting to `provider'.
+#
+#   If you also make this file executable, and replace the first line
+#   with just "#!/bin/sh", the commands below will be executed instead.
+#
+
+# The location of the ppp daemon itself (shouldn't need to be changed)
+PPPD=/etc/ppp/peers
+
+# The default provider to connect to
+$PPPD call verizon
