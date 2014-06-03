@@ -86,7 +86,7 @@ class CpDbManager(threading.Thread):
         except:
             self.__lock.acquire()
             print "The queue is full"
-            self.__release()
+            self.__lock.release()
             
     def shutdown_thread(self):
         print 'shutting down CpDbManager...'
@@ -142,7 +142,7 @@ class CpDb():
             print "TAG = ", row[1]
             print "TIMESTAMP = ", row[2], "\n"
         
-        print "Operation completed successfully";
+        print "queryTable: success";
         conn.close()
         
         
@@ -158,7 +158,7 @@ class CpDb():
         
         conn.commit()
         
-        print "Operation completed successfully";
+        print "updateTable: success";
         conn.close()
         
         
@@ -175,7 +175,7 @@ class CpDb():
         
         conn.commit()
         
-        print "Operation completed successfully";
+        print "updateRecord: success";
         conn.close() 
         
     def updateRecordBlob(self, tagId, tagInfo):
@@ -191,7 +191,7 @@ class CpDb():
         
         conn.commit()
         
-        print "Operation completed successfully";
+        print "updateRecordBlob: success";
         conn.close()                     
         
     def deleteRecord(self):

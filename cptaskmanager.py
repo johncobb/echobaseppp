@@ -9,7 +9,11 @@ from cpdb import CpDb
 from cpdb import CpDbManager
 from cprfmsg import CpRfMsg
 from cprfmsg import CpEncoder
+from cpdefs import CpSystemState
     
+
+
+
 
 def dataReceived(rf_data):
     pass
@@ -31,28 +35,45 @@ def checksumValid(data):
     
 class CpTaskManager(threading.Thread):
 
-    def __init__(self, rfThread, inetThread, dbThread, *args):
+    def __init__(self, rfThread, inetThread, dbThread, ledThread, *args):
         self._target = self.task_handler
         self._args = args
         self.__lock = threading.Lock()
         self.messages = Queue.Queue(10)
         self.closing = False # A flag to indicate thread shutdown
         self.rfThread = rfThread
+        self.ledThread = ledThread
         self.inetThread = inetThread
+        self.inetThread.setStateChangedCallback(self.stateChangedCallback)
         self.dbThread = dbThread
         threading.Thread.__init__(self)
+    
+    def stateChangedCallback(self, state): 
+        if(state == CpSystemState.STARTUP):
+            self.ledThread.startup()
+        elif(state == CpSystemState.CONNECTING):
+            self.ledThread.connecting()
+        elif(state == CpSystemState.IDLE):
+            self.ledThread.idle()
+        elif(state == CpSystemState.SENDING):
+            self.ledThread.sending()
+        elif(state == CpSystemState.SLEEP):
+            self.ledThread.sleep()
         
+            
     def run(self):
         self._target(*self._args)
         
     def task_handler(self):
+        # Toggle led startup pattern
+        self.ledThread.startup()
         
         while not self.closing:
             # Process new messages
             self.handler_rfqueue()
             time.sleep(.0005)
         
-        
+       
     def handler_rfqueue(self):
         
         rf_encoded = self.rfThread.queue_get()
@@ -97,7 +118,7 @@ class CpTaskManager(threading.Thread):
         except:
             self.__lock.acquire()
             print "The queue is full"
-            self.__release()
+            self.__lock.release()
             
     def shutdown_thread(self):
         print 'shutting down CpTaskManager...'

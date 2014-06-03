@@ -1,0 +1,5 @@
+### Specify route
+route add default gw gatewayip ppp0
+
+#Test 1
+route add default dev ppp0

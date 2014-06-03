@@ -4,6 +4,8 @@ import Queue
 import socket
 import sys
 from cpdefs import CpDefs
+from cpdefs import CpSystemState
+from cplog import CpLog
 from datetime import datetime
 #import Adafruit_BBIO.UART as UART
 #import Adafruit_BBIO.GPIO as GPIO
@@ -41,7 +43,6 @@ class CpInetResult:
     ResultCode = 0
     Data = ""
     
-    
 class CpInet(threading.Thread):
     
     def __init__(self, inetResponseCallbackFunc=None, *args):
@@ -65,9 +66,14 @@ class CpInet(threading.Thread):
         self.state = CpInetState.CLOSED
         self.state_timeout = time.time()
         self.exponential_backoff = 30
+        self.log = CpLog()
+        self.state_cb = None
         #self.data_buffer = ""
         threading.Thread.__init__(self)
     
+    def setStateChangedCallback(self, callback):
+        self.state_cb = callback   
+                        
     def lookupStateName(self, index):
         if(index == 0):
             return "INITIALIZED"
@@ -82,6 +88,7 @@ class CpInet(threading.Thread):
                    
     def enter_state(self, new_state, timeout):
         print 'enter_state: ', self.lookupStateName(new_state)
+            
         self.state = new_state
         self.state_timeout = time.time() + timeout
     
@@ -114,40 +121,45 @@ class CpInet(threading.Thread):
             print 'init_socket: successful (%s)' %self.remoteIp
             return True
         except socket.gaierror:
+            self.log.logError('init_socket: failed (hostname could not be resolved)')
             print 'init_socket: failed (hostname could not be resolved)'
             return False
         except:
+            self.log.logError('init_socket: failed (other)')
             print 'init_socket: failed (other)'
             return False
               
     def inet_connect(self):
+           
         try:
             self.sock.connect((self.remoteIp, self.port))
             print 'inet_connect: successful'
             return True
         except:
+            self.log.logError('inet_connect: failed')
             print 'inet_connect: failed'
             return False
         
     def inet_send(self, packet):
-
+           
         postData = CpInetDefs.INET_HTTPPOST % (CpInetDefs.INET_ROUTE, CpInetDefs.INET_HOST, len(packet), packet)
-        #print "RemoteIp %s" % self.remoteIp
-        #print "Port %d" % self.port
             
         print 'inet_send: (',self.remoteIp, ':', self.port, ')'
-        print 'inet_send: ', postData
+        
+        if CpDefs.LogPacketLevel == True:
+            print 'inet_send: ', postData
         
         try:
             byteCount = self.sock.send(postData)
         except socket.error:
+            self.log.logError('inet_send: failed')
             print 'inet_send: failed'
             return False
     
         print 'Packet sent successfully %d' % byteCount    
         reply = self.sock.recv(4096)
         
-        print 'inet_send (reply): ', reply
+        #print 'inet_send (reply): ', reply
         
         result = CpInetResultCode()
         
@@ -159,24 +171,31 @@ class CpInet(threading.Thread):
             return True
         elif (result.ResultCode == CpInetResultCode.RESULT_ERROR):
             #print 'ResultCode=CpInetResultCode.RESULT_ERROR'
+            self.log.logError('inet_parse_result: %s' % result.Data)
             print 'inet_send: failed (error)'
             return False
         else:
+            self.log.logError('inet_parse_result: %s' % result.Data)
             print 'inet_send: failed (unknown)'
+            return False
      
         
     def inet_close(self):
+           
         try:
             self.sock.shutdown(socket.SHUT_RDWR)
             self.sock.close()
             print 'inet_close: successful'
             return True
         except:
+            self.log.logError('inet_close: failed')
             print 'inet_close: failed'
             return False      
               
-
-    
+    def toggleState(self, state):
+        if (self.state_cb != None):
+            self.state_cb(state)    
+            
     def inet_handler(self):
         
         retry = 0
@@ -192,8 +211,10 @@ class CpInet(threading.Thread):
                     time.sleep(.05)
                     continue
             elif(self.state == CpInetState.INITIALIZED):
+                self.toggleState(CpSystemState.CONNECTING)
                 if self.inet_connect() == True:
                     self.enter_state(CpInetState.CONNECTED, 30)
+                    
                     time.sleep(.05)
                     continue
             elif(self.state == CpInetState.CONNECTED):
@@ -202,9 +223,11 @@ class CpInet(threading.Thread):
                 # idle and connected states thus decreasing latency.
                 # Reset the timer for each new message
                 if(self.state_timedout() == True):
+                    self.toggleState(CpSystemState.IDLE)
                     self.enter_state(CpInetState.IDLE, 30)
                     continue
                 if (self.commands.qsize() > 0):
+                    self.toggleState(CpSystemState.SENDING)
                     self.reset_state_timeout(30)
                     print 'Command found'
                     packet = self.commands.get(True)
@@ -223,6 +246,7 @@ class CpInet(threading.Thread):
                 # Check for idle timeout then close connection
                 if(self.state_timedout() == True):
                     self.inet_close()
+                    self.toggleState(CpSystemState.SLEEP)
                     self.enter_state(CpInetState.SLEEP, 60)
                 pass
             elif(self.state == CpInetState.SLEEP):
@@ -262,7 +286,7 @@ class CpInet(threading.Thread):
         except:
             self.__lock.acquire()
             print "The Rf queue is full"
-            self.__release()
+            self.__lock.release()
 
     def set_timeout(self, timeout):
         self.inet_timeout = datetime.now() + timeout
@@ -308,11 +332,13 @@ class CpInet(threading.Thread):
             self.sock.close()
             return True
         except:
+            self.log.logError('inet_test:')
             return False
 
 
 def inetDataReceived(data):
-    print 'Callback function inetDataReceived ', data
+    #print 'Callback function inetDataReceived ', data
+    pass
     
 if __name__ == '__main__':
     inetThread = CpInet(inetDataReceived)

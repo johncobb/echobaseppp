@@ -1,0 +1,11 @@
+http://www.raspberrypi-spy.co.uk/2013/07/running-a-python-script-at-boot-using-cron/
+
+# Add cron jobs
+@reboot /usr/bin/python /home/root/modemscripts/enablemodem.py &
+@reboot /usr/bin/python /home/root/echobaseppp/main.py -m server > ~/echobaseppp/log.dat 2>&1
+
+# List running cron task
+ps aux | grep ~/echobaseppp/main.py
+
+# Kill running task
+sudo kill [procid]

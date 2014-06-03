@@ -1,0 +1,34 @@
+
+systemctl enable servicename.service
+systemctl disable servicename.service
+systemctl start servicename.service
+systemctl stop servicename.service
+systemctl restart servicename.service
+
+# RESOURCES
+http://stackoverflow.com/questions/20777319/run-python-script-on-start-up-arch-linux-arm-on-raspberry-pi
+https://wiki.archlinux.org/index.php/Systemd#Writing_custom_.service_files
+
+#In the folder /etc/systemd/system/ make a file named screen.service
+#The contents of that file might look like this (change for your use):
+
+[Unit]
+
+Description=Launches echobaseppp/main.py
+
+After=network.target
+
+[Service]
+
+Type=simple
+
+ExecStart=~/echobaseppp/main.py
+
+RemainAfterExit=true
+
+[Install]
+
+WantedBy=multi-user.target
+
+# When you're finished run systemctl enable screen.service, the WantedBy line tells systemd where to make the symlink.
+

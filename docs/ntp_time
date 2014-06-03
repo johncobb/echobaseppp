@@ -1,0 +1,82 @@
+#Install NTP Software
+opkg update
+opkg list|grep ntp
+opkg install ntp
+
+#Enable NTP Service
+root@beaglebone/etc# systemctl enable ntpdate.service
+root@beaglebone/etc# systemctl enable ntp.service
+
+# This installs 2 services
+
+
+# ADD TO ntp.conf
+
+# This is the most basic ntp configuration file
+# The driftfile must remain in a place specific to this
+# machine - it records the machine specific clock error
+ 
+driftfile /etc/ntp.drift
+logfile /var/log/ntpd.log
+ 
+# NTP Servers for Ireland from www.pool.ntp.org
+server 0.us.pool.ntp.org
+server 1.us.pool.ntp.org
+server 2.us.pool.ntp.org
+server 3.us.pool.ntp.org
+ 
+# Using local hardware clock as fallback
+# Disable this when using ntpd -q -g -x as ntpdate or it will sync to itself
+# server 127.127.1.0 
+# fudge 127.127.1.0 stratum 14
+ 
+# Defining a default security setting
+#restrict 192.168.1.0 mask 255.255.255.0 nomodify notrap
+restrict default
+# END ADD TO ntp.conf
+
+# FIRST SERVICE
+root@beaglebone/lib/systemd/system# more ntpd.service 
+[Unit]
+Description=Network Time Service
+After=network.target
+ 
+[Service]
+Type=forking
+PIDFile=/run/ntpd.pid
+ExecStart=/usr/bin/ntpd -p /run/ntpd.pid
+ 
+[Install]
+WantedBy=multi-user.target
+
+# SECOND SERVICE
+
+root@beaglebone:/lib/systemd/system# more ntpdate.service 
+[Unit]
+Description=Network Time Service (one-shot ntpdate mode)
+Before=ntpd.service
+ 
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/ntpdate-sync silent
+RemainAfterExit=yes
+ 
+[Install]
+WantedBy=multi-user.target
+
+***
+IMPORTANT on the Beaglebone black you have to modify the second service to:
+***
+
+root@beaglebone:/lib/systemd/system# more ntpdate.service
+[Unit]
+Description=Network Time Service (one-shot ntpdate mode)
+Before=ntpd.service
+ 
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/ntpd -q -g -x
+RemainAfterExit=yes
+ 
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,3 @@
+#!/bin/sh
+
+route add -host 23.253.112.132 dev ppp0

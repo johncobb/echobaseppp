@@ -6,6 +6,10 @@ from cprf import CpRf
 from cpinet import CpInet
 from cpdb import CpDb
 from cpdb import CpDbManager
+from cpdefs import CpDefs
+from cpdefs import CpGpioMap
+from cplog import CpLog
+from cpled import CpLed
 '''
 import Adafruit_BBIO.UART as UART
 import Adafruit_BBIO.GPIO as GPIO
@@ -13,23 +17,21 @@ import Adafruit_BBIO.GPIO as GPIO
 from datetime import datetime
 '''
 
-class CpGpioMap():
-    GPIO_CELLENABLE = "P9_12"
-    GPIO_CELLRESET = "P9_23"
-    GPIO_CELLONOFF = "P8_12"
-    GPIO_CELLPWRMON = "P9_42"
+
     
 def rfDataReceived(data):
-    print 'Callback function rfDataReceived ', data
+    #print 'Callback function rfDataReceived ', data
+    pass
     
 def inetDataReceived(data):
-    print 'Callback function inetDataReceived ', data
+    #print 'Callback function inetDataReceived ', data
+    pass
     
     
 def main(argv):
     
     runas = 'console'
-    
+    print "Starting thread main..."
     try:
         opts, args = getopt.getopt(argv,"hm:",["mode="])
     except getopt.GetoptError:
@@ -50,14 +52,16 @@ def main(argv):
             
 def start_threads(runas):
     
-    if runas not in ("console", "server"):
+    if runas not in ("console", "service"):
         print "Error invalid command line argument (%s)" % runas
         exit(1)
     
     print 'Echobase 1.0 starting services...'
     print 'mode=', runas
     
-    
+    print 'Wait 30 seconds for network to startup'
+    time.sleep(30)
+    print 'Done waiting...'
     rfThread = CpRf(rfDataReceived)
     rfThread.start()
     
@@ -67,10 +71,13 @@ def start_threads(runas):
     dbThread = CpDbManager(inetThread)
     dbThread.start()
     
-    taskThread = CpTaskManager(rfThread, inetThread, dbThread)
+    ledThread = CpLed()
+    ledThread.start()
+    
+    taskThread = CpTaskManager(rfThread, inetThread, dbThread, ledThread)
     taskThread.start()
     
-    if(runas == 'server'):
+    if(runas == 'service'):
         while(taskThread.isAlive()):
             time.sleep(.005)
 
@@ -92,6 +99,15 @@ def start_threads(runas):
       
             
 if __name__ == '__main__':
+    
+    if CpDefs.LogVerbose == True:
+        # Route standard out to a log file
+        log = CpLog()
+        log.logStdOut()
+    
+    print "one"
+    print "two"
+    print "three"
     main(sys.argv[1:])
     
 

@@ -115,7 +115,8 @@ class CpRf(threading.Thread):
                     if(self.rfResponseCallbackFunc != None):
                         #self.rfResponseCallbackFunc(result)
                         if(self.first_zero_found == True):
-                            self.data_buffer.put(tmp_buffer, block=True, timeout=1)
+                            #self.data_buffer.put(tmp_buffer, block=True, timeout=1)
+                            self.enqueue_rf(tmp_buffer)
                             #self.rfResponseCallbackFunc(tmp_buffer)
                             self.rfBusy = False
                         else:
@@ -128,7 +129,15 @@ class CpRf(threading.Thread):
                     #tmp_buffer += tmp_char.encode('hex')
             #self.__lock.release()
             time.sleep(.005)
-            
+
+    def enqueue_rf(self, rf):
+        try:
+            self.data_buffer.put(rf, block=True, timeout=1)
+        except:
+            self.__lock.acquire()
+            print "The queue is full"
+            self.__lock.release()
+                        
     def queue_get(self):
         
         rf_data = "\x00"
@@ -151,7 +160,7 @@ class CpRf(threading.Thread):
         except:
             self.__lock.acquire()
             print "The Rf queue is full"
-            self.__release()
+            self.__lock.release()
             
     rfTimeout = 0
     

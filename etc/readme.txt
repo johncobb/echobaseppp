@@ -6,3 +6,4 @@ Copy the following files to beaglebone black:
 [root]/etc/ppp/peers/att-disconnect-chat
 [root]/etc/ppp/peers/verizon
 [root]/etc/ppp/peers/verizon-connect-chat
+[root]/etc/ppp/ip-up.d/addroute
