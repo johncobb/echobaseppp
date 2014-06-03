@@ -1,0 +1,21 @@
+lcp-echo-failure 0
+lcp-echo-interval 0
+debug
+noauth
+show-password
+noproxyarp
+/dev/ttyO4
+115200
+nocrtscts
+persist
+defaultroute
+novj
+nobsdcomp
+nopcomp
+noaccomp
+maxfail 99
+noipdefault
+connect "/usr/sbin/chat -v -V -S -s -t3 -f /etc/ppp/peers/att-connect-chat"
+disconnect /etc/ppp/peers/att-disconnect-chat
+
+
