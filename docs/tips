@@ -1,0 +1,31 @@
+### File Permissions
+chmod ugo+x HelloWorldTest2
+
+### PPP Dialer ###
+pppd call verizon
+
+### List Processes using tty
+ps -lt ttyO4
+
+### Stream log file
+tail -f /var/log/ppp/log
+
+### Specify route
+route add default gw gatewayip ppp0
+
+### Static ip with ifconfig
+ifconfig ppp0 inet-ip
+
+### Static route with route add
+route add -host 72.3.250.113 dev ppp0
+route add -host appserver05.cphandheld.com dev ppp0
+
+### Netcat
+nc 23.253.112.132 1337 < filename.dat
+
+### scp commands ###
+# copy from local machine to remote machine
+scp localfile user@host:/path/to/whereyouwant/thefile
+or
+# copy from remote machine to local machine
+scp user@host:/path/to/remotefile localfile

@@ -1,0 +1,22 @@
+#Update opkg
+opkg update
+
+#Install pppd
+opkg install ppp
+
+# Install BBIO Angstrom
+# https://github.com/adafruit/adafruit-beaglebone-io-python
+# Easiest...
+/usr/bin/ntpdate -b -s -u pool.ntp.org
+opkg update && opkg install python-pip python-setuptools
+pip install Adafruit_BBIO
+pip install pyserial
+
+# Manual
+git clone git://github.com/adafruit/adafruit-beaglebone-io-python.git
+#set the date and time
+/usr/bin/ntpdate -b -s -u pool.ntp.org
+#install dependency
+opkg update && opkg install python-distutils
+cd adafruit-beaglebone-io-python
+python setup.py install
