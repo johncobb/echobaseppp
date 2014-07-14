@@ -1,0 +1,3 @@
+sudo cu -l <tty-device-name> -s <baud-rate>
+
+sudo cu -l tty.usbserial-FTELSNMW -s 115200

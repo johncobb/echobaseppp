@@ -1,0 +1,103 @@
+=BBB image prep guide for ppp + echobaseapp=
+
+-------------
+Start with a fresh OEM board or fresh flash (with BBB-eMMC-flasher-2013.09.12.img.xz)
+Remove some crap
+-	opkg --force-depends remove gnome* 
+-	opkg --force-depends remove avahi*
+-	opkg --force-depends remove node*
+
+or all at once since it will take ~30 minutes opkg --force-depends remove gnome* && opkg --force-depends remove avahi* && opkg --force-depends remove node*
+-------------
+
+Remove connman, as it really screws with network settings that we try to set manually. This requires removing connman packages and setting up 
+
+/etc/network/interfaces FIRST to enable network access after reboot
+
+DO THIS BEFORE REMOVING CONNMAN (unless you have serial port access)
+Create /etc/network/interfaces with the following contents
+---
+# interfaces(5) file used by ifup(8) and ifdown(8)
+auto lo
+iface lo inet loopback
+auto eth0
+iface eth0 inet static
+address 10.10.10.138
+netmask 255.255.255.0
+gateway 10.10.10.1
+---
+Create a file to bring up eth0 on boot using systemd
+
+/etc/systemd/system/net.service needs to contain: 
+---
+[Unit]
+Description=Network interfaces
+Wants=network.target
+Before=network.target
+BindsTo=sys-subsystem-net-devices-eth0.device
+#After=sys-subsystem-net-devices-wlan0.device
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/sh -c "sleep 5;ifup eth0"
+ExecStop=/bin/sh -c "ifdown eth0"
+
+[Install]
+WantedBy=multi-user.target
+---
+
+enable it with 
+systemctl enable net.service
+
+Now after that is setup, remove connman
+
+-	opkg --force-depends --force-remove remove connman* 
+-       you will have to reboot via serial or by pulling the power now to regain ssh access
+
+-------------
+
+Set runtime to be multi-user instead of graphical-user to disable X windows service launching 
+-	ln -sf /lib/systemd/system/multi-user.target /etc/systemd/system/default.target (reboot after this)
+-	reboot
+
+-------------
+Setup the DNS server for the system with:
+echo "nameserver 8.8.4.4" > /etc/resolv.conf
+-------------
+
+-------------
+Update packages and install BBIO library, pppd, etc
+-       always set the time before working with opkg or pip (BBB does not have hardware RTC so with each boot run ntpdate pool.ntp.org (add to crontab with 
+
+@reboot if you wish)
+-	opkg update 
+- 	opkg install python-pip python-setuptools python-smbus pyserial
+-	pip install Adafruit_BBIO
+
+-------------
+
+install ppp and scripts
+
+opkg install ppp
+
+set default gateway to ppp connection, to allow for IP address changes to appserver05.cphandheld.com
+Before final deployment this image should be further inspected for unnecessary traffic
+
+add this to /etc/ppp/ip-up.d/01setuproute
+
+route add default dev ppp0
+
+
+Before final deployment, remove the default route entry in /etc/network/interfaces to avoid conflict and a route will not be required in the field for 
+
+ethernet debugging (although I suggest field debugging over serial)
+
+Add startup scripts, make sure they have the option "After=network.target" (they currently do) removed or they will NOT start without a network cable 
+
+plugged in
+
+Modify startup scripts for capitalizaton in paths (noticed latest code has captialized folders)
+Desktop  EchoBasePPP  ModemScripts  RfScripts  pppd  systemd
+
+You can monitor traffic flowing through the ppp0 connection by taxing the traffic counter with ifconfig ppp0
