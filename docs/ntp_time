@@ -11,6 +11,7 @@ root@beaglebone/etc# systemctl enable ntp.service
 
 
 # ADD TO ntp.conf
+#Path to ntp.conf is /etc/ntp.conf
 
 # This is the most basic ntp configuration file
 # The driftfile must remain in a place specific to this

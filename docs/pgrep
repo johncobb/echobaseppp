@@ -1,0 +1,2 @@
+# List running python scripts
+pgrep -lf python

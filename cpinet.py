@@ -16,6 +16,7 @@ class CpInetState:
     CONNECTED = 2
     CLOSED = 3
     SLEEP = 4
+    WAITNETWORKINTERFACE = 5
                       
 class CpInetResultCode:
     RESULT_UNKNOWN = 0

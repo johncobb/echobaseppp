@@ -7,9 +7,9 @@ defaultroute
 usepeerdns
 holdoff 2
 connect-delay 2000
-user 8128931809@vzw3g.com
+#user 8128931809@vzw3g.com
 #user 8125495898@vzw3g.com
-password vzw
+#password vzw
 show-password
 persist
 maxfail 0
@@ -22,7 +22,5 @@ ipcp-accept-local
 ipcp-accept-remote
 lcp-echo-failure 4
 lcp-echo-interval 65535
-connect "/usr/sbin/chat -v -V -S -s -t3 -f /etc/ppp/peers/verizon-connect-chat"
+connect "/usr/sbin/chat -v -V -S -s -t3 -f /etc/ppp/peers/kore-connect-chat"
 #disconnect /etc/ppp/peers/gprs-disconnect-chat
-
-
