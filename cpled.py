@@ -63,9 +63,12 @@ class CpLed(threading.Thread):
     # to start with the leds off
     def enter_state(self, index):
         self.fmapIndex = index
-        self.toggleLed(self.LED1, CpLedState.LEDOFF)
-        self.toggleLed(self.LED2, CpLedState.LEDOFF)
-        
+        #self.toggleLed(self.LED1, CpLedState.LEDOFF)
+        #self.toggleLed(self.LED2, CpLedState.LEDOFF)
+        self.LED1.ledState = CpLedState.LEDOFF
+        self.LED2.ledState = CpLedState.LEDOFF
+        GPIO.output(self.LED1, GPIO.LOW)
+        GPIO.output(self.LED2, GPIO.LOW)
         
     def toggleLed(self, led, state):
         led.ledState = state
