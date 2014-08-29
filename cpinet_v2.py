@@ -155,6 +155,7 @@ class CpInet2(threading.Thread):
         try:
             self.sock.connect((self.remoteIp, self.port))
             print 'inet_connect: successful'
+            self.enter_state(self.inet_idle, 30)
             return True
         except:
             self.log.logError('inet_connect: failed')
@@ -162,8 +163,6 @@ class CpInet2(threading.Thread):
             return False
       
 
-        
-        
     def inet_send(self):
         
         # Allow the connected state to wait at least 30s before
@@ -247,7 +246,8 @@ class CpInet2(threading.Thread):
         # Check to wake send ping once every 60s
         if(self.state_timedout() == True):
             self.enter_state(self.init_socket, 5)
-            return        
+            return
+      
     # inet_close is explicitly called by inet_sleep or shutdown_thread
     # inet_close is not used in conjunction with enter_state function  
     def inet_close(self):
@@ -262,7 +262,6 @@ class CpInet2(threading.Thread):
             print 'inet_close: failed'
             return False      
               
-    
     def handle_error(self):
         
         # Make sure we haven't exhausted all retries
