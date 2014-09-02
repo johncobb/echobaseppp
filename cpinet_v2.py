@@ -7,8 +7,6 @@ from cpdefs import CpDefs
 from cpdefs import CpSystemState
 from cplog import CpLog
 from datetime import datetime
-#import Adafruit_BBIO.UART as UART
-#import Adafruit_BBIO.GPIO as GPIO
 
 class CpInetState:
     INITIALIZE = 0
@@ -32,13 +30,35 @@ class CpInetResponses:
     TOKEN_HTTPCONNECT = "CONNECT"
     
       
-    
 class CpInetDefs:
 
     INET_HOST = CpDefs.InetHost
     INET_PORT = CpDefs.InetPort
     INET_ROUTE = CpDefs.InetRoute
     INET_HTTPPOST = CpDefs.InetPostParams
+    
+class CpInetTimeout:
+    INITIALIZE = 5
+    IDLE = 30
+    CONNECT = 5
+    CLOSE = 0
+    SLEEP = 30
+    SEND = 5
+    WAITNETWORKINTERFACE = 120
+    
+class CpInetError:
+    InitializeErrors = 0
+    InitializeMax = 3
+    ConnectErrors = 0
+    ConnectMax = 3
+    SendErrors = 0
+    SendMax = 3
+    CloseErrors = 0
+    CloseMax = 3
+    
+    
+    
+    
 
 
 class CpInetResult:
@@ -65,7 +85,8 @@ class CpInet2(threading.Thread):
         self.sock = None
         self.remoteIp = None
         self.initialized = False
-        self.state = CpInetState.CLOSED
+        self.state = CpInetState.INITIALIZE
+        self.inetError = CpInetError()
         self.state_timeout = time.time()
         self.exponential_backoff = 30
         self.log = CpLog()
@@ -73,7 +94,6 @@ class CpInet2(threading.Thread):
         self.retries = 1
         self.waitRetryBackoff = {1:5, 2:15, 3:30}
         self.stateMaxRetries = 3
-        #self.data_buffer = ""
         threading.Thread.__init__(self)
     
     def setStateChangedCallback(self, callback):
@@ -107,15 +127,18 @@ class CpInet2(threading.Thread):
         #self.commCallbackHandler = None        
         
     def state_timedout(self):
-        if((datetime.now() - self.timestamp).seconds < self.timeout):
+        if((datetime.now() - self.timestamp).seconds >= self.timeout):
             print 'state_timeout: (', self.lookupStateName(self.state), ')'
-            return False
-        else:
             return True
+        else:
+            return False
+        
+    def reset_state_timeout(self):
+        self.timestamp = datetime.now()
         
     def inet_handler(self):
         # Start out initializing socket
-        self.enter_state(self.init_socket, 5)
+        self.enter_state(self.init_socket, CpInetTimeout.INITIALIZE)
         
         while not self.closing:
             if(self.STATEFUNC != 0):
@@ -139,29 +162,63 @@ class CpInet2(threading.Thread):
             self.remoteIp = socket.gethostbyname(self.host)
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             print 'init_socket: successful (%s)' %self.remoteIp
-            self.enter_state(self.inet_connect, 5)
+            self.enter_state(self.inet_connect, CpInetTimeout.CONNECT)
             return True
         except socket.gaierror:
             self.log.logError('init_socket: failed (hostname could not be resolved)')
             print 'init_socket: failed (hostname could not be resolved)'
-            return False
-        except:
+        except:      
             self.log.logError('init_socket: failed (other)')
             print 'init_socket: failed (other)'
-            return False
+        
+        
+        # ******** BEGIN ERROR HANDLING ********
+        
+        # If we get this far we received an error
+        self.inetError.InitializeErrors += 1
+        
+        if (self.inetError.InitializeErrors > self.inetError.InitializeMax):
+            print 'Max Initialize Errors'
+            # Reset Error Counter
+            self.inetError.InitializeErrors = 0
+            # Handle Max Errors
+            # Signal to reset PPP
+            return False 
+          
+        print 'Waiting Backoff %d' % self.waitRetryBackoff[self.inetError.InitializeErrors]
+        # Allow some settle time before trying again
+        time.sleep(self.waitRetryBackoff[self.inetError.InitializeErrors])
+        
+        # ******** END ERROR HANDLING ********
+        
+        return False
               
     def inet_connect(self):
            
         try:
             self.sock.connect((self.remoteIp, self.port))
             print 'inet_connect: successful'
-            self.enter_state(self.inet_idle, 30)
+            self.enter_state(self.inet_idle, CpInetTimeout.IDLE)
             return True
-        except:
+        except:         
             self.log.logError('inet_connect: failed')
             print 'inet_connect: failed'
-            return False
-      
+
+        
+        # ******** BEGIN ERROR HANDLING ********
+        
+        # If we get this far we received an error
+        self.inetError.ConnectErrors += 1
+        
+        if (self.inetError.ConnectErrors > self.inetError.ConnectMax):
+            # Handle Max Errors
+            self.enter_state(self.init_socket, CpInetTimeout.INITIALIZE)
+            return False 
+          
+        # Allow some settle time before trying again
+        time.sleep(self.waitRetryBackoff[self.inetError.ConnectErrors])
+        
+        # ******** END ERROR HANDLING ********
 
     def inet_send(self):
         
@@ -170,20 +227,37 @@ class CpInet2(threading.Thread):
         # idle and connected states thus decreasing latency.
         # Reset the timer for each new message
         if(self.state_timedout() == True):
-            self.enter_state(self.inet_idle, 30)
-            return
+            self.enter_state(self.inet_idle, CpInetTimeout.IDLE)
+            return True
 
-            continue
         if (self.commands.qsize() > 0):
-            self.reset_state_timeout(30)
+            self.reset_state_timeout()
             print 'Command found'
             packet = self.commands.get(True)
             
             if(self.inet_send_packet(packet) == True):
                 self.commands.task_done()
-            else:
-                # Keep track of send failures
-                pass
+                return True
+        else:
+            # Otherwise we have no new messages and the current
+            # state has not yet timed out so return True in order
+            # to avoid the error handling
+            return True
+            
+        # ******** BEGIN ERROR HANDLING ********
+        
+        # If we get this far we received an error
+        self.inetError.SendErrors += 1
+        
+        if (self.inetError.SendErrors > self.inetError.SendMax):
+            # Handle Max Errors
+            self.enter_state(self.inet_connect, CpInetTimeout.CONNECT)
+            return False 
+          
+        # Allow some settle time before trying again
+        time.sleep(self.waitRetryBackoff[self.inetError.SendErrors])
+        
+        # ******** END ERROR HANDLING ********
             
     # inet_send_packet is explicitly called by inet_send 
     def inet_send_packet(self, packet):
@@ -228,24 +302,23 @@ class CpInet2(threading.Thread):
     def inet_idle(self):
         # Check to see if there is a queued message
         if (self.commands.qsize() > 0):
-            self.enter_state(self.inet_send, 5)
+            self.enter_state(self.inet_send,CpInetTimeout.SEND)
             return
             
         # Check for idle timeout then close connection
         if(self.state_timedout() == True):
-            self.enter_state(self.inet_close, 5)
             self.inet_close()
-            self.enter_state(self.inet_sleep, 60)
+            self.enter_state(self.inet_sleep, CpInetTimeout.SLEEP)
             
     def inet_sleep(self):
         # Check to see if there is a queued message
         if (self.commands.qsize() > 0):
-            self.enter_state(self.init_socket, 5)
+            self.enter_state(self.init_socket, CpInetTimeout.INITIALIZE)
             return
         
         # Check to wake send ping once every 60s
         if(self.state_timedout() == True):
-            self.enter_state(self.init_socket, 5)
+            self.enter_state(self.init_socket, CpInetTimeout.INITIALIZE)
             return
       
     # inet_close is explicitly called by inet_sleep or shutdown_thread
@@ -394,6 +467,27 @@ def inetDataReceived(data):
 if __name__ == '__main__':
     inetThread = CpInet2(inetDataReceived)
     inetThread.start()   
+    
+    
+    while True:
+        input = raw_input(">> ")
+                # Python 3 users
+                # input = input(">> ")
+        if input == 'exit' or input == 'EXIT':
+            inetThread.shutdown_thread()
+            
+            while(inetThread.isAlive()):
+                time.sleep(.005)
+                
+            print "Exiting app"
+            break
+        elif input == '0':
+            inetThread.enqueue_packet("abc123")
+        else:
+            pass
+
+            
+        time.sleep(.5)
     
     
     
