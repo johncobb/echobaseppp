@@ -2,10 +2,8 @@ import threading
 import time
 import Queue
 import socket
-import sys
-from collections import deque
+import mmap
 from cpdefs import CpDefs
-from cpdefs import CpSystemState
 from cplog import CpLog
 from datetime import datetime
 
@@ -60,14 +58,13 @@ class CpInetError:
     CloseErrors = 0
     CloseMax = 3
     
-    
-    
-    
-
-
 class CpInetResult:
     ResultCode = 0
     Data = ""
+    
+class CpWatchdogStatus:
+    Success = "1"
+    Error = "2"
     
 class CpInet2(threading.Thread):
     
@@ -100,15 +97,6 @@ class CpInet2(threading.Thread):
         #self.waitRetryBackoff = {1:1, 2:2, 3:3} # Test timeouts to speed up testing
         self.stateMaxRetries = 3
         
-        '''
-        INITIALIZE = 0
-        IDLE = 1
-        CONNECT = 2
-        CLOSE = 3
-        SLEEP = 4
-        SEND = 5
-        WAITNETWORKINTERFACE = 6
-        '''
         self.fmap = {0:self.init_socket,
                      1:self.inet_idle, 
                      2:self.inet_connect, 
@@ -150,8 +138,7 @@ class CpInet2(threading.Thread):
     def exit_state(self):
         self.current_state = 0
         self.STATEFUNC = 0
-        self.timeout = 0.0
-        #self.commCallbackHandler = None        
+        self.timeout = 0.0   
         
     def state_timedout(self):
         if((datetime.now() - self.timestamp).seconds >= self.timeout):
@@ -215,7 +202,8 @@ class CpInet2(threading.Thread):
             # Reset Error Counter
             self.inetError.InitializeErrors = 0
             # Handle Max Errors
-            # TODO: Signal to reset PPP
+            # TODO: TEST BEFORE PROD
+            self.watchdog_set_status(CpWatchdogStatus.Error)
             self.enter_state(CpInetState.WAITNETWORKINTERFACE, CpInetTimeout.WAITNETWORKINTERFACE)
             return False 
         
@@ -234,6 +222,7 @@ class CpInet2(threading.Thread):
             # End New Code for Timeout
             print 'inet_connect: successful'
             self.enter_state(CpInetState.IDLE, CpInetTimeout.IDLE)
+            self.watchdog_set_status(CpWatchdogStatus.Success)
             return True
         except:         
             self.log.logError('inet_connect: failed')
@@ -244,7 +233,6 @@ class CpInet2(threading.Thread):
         
         return False
 
-        
 
     def handle_inet_connect_error(self): 
         
@@ -303,6 +291,7 @@ class CpInet2(threading.Thread):
         
         
     def handle_inet_send_error(self): 
+        
         # ******** BEGIN ERROR HANDLING ********
         
         self.inetError.SendErrors += 1
@@ -410,23 +399,20 @@ class CpInet2(threading.Thread):
         # attempting to initialize a new connection
         if(self.state_timedout() == True):
             self.enter_state(CpInetState.INITIALIZE, CpInetTimeout.INITIALIZE)
-            return True
+            return False
         
-        # TODO: If network interface found break out of this state
+        # TODO: REVIEW AND TEST BEFORE PROD
+        with open("info.txt", "r+b") as f: #mmap file
+            mm = mmap.mmap(f.fileno(), 0)
+            
+        # Check to see if we have a network interface
+        if (mm[:1] == "1"):
+            self.enter_state(CpInetState.INITIALIZE, CpInetTimeout.INITIALIZE)
+            
+        mm.close()
         
         return True 
               
-    def handle_error(self):
-        
-        # Make sure we haven't exhausted all retries
-        if self.retries == self.stateMaxRetries:
-            print "max retries attempted for current state"
-            return True
-
-        time.sleep(self.waitRetryBackoff[self.retries]) # Delay n seconds before trying again
-        self.retries += 1
-        return False
-             
     def enqueue_packet(self, packet):
         try:
             #self.inetBusy = True
@@ -464,7 +450,15 @@ class CpInet2(threading.Thread):
             self.log.logError('inet_test:')
             return False
 
-
+    def watchdog_set_status(self, status):
+        with open("info.txt", "r+b") as f: #mmap file
+            mm = mmap.mmap(f.fileno(), 0)
+        
+        mm[1:2] = status
+        mm.flush()
+        mm.close()
+            
+            
 def inetDataReceived(data):
     #print 'Callback function inetDataReceived ', data
     pass
