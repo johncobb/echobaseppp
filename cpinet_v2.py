@@ -151,9 +151,14 @@ class CpInet(threading.Thread):
         self.timestamp = datetime.now()
         
     def inet_handler(self):
-        # Start out initializing socket
-        #self.enter_state(CpInetState.INITIALIZE, CpInetTimeout.INITIALIZE)
-        self.enter_state(CpInetState.WAITNETWORKINTERFACE, CpInetTimeout.WAITNETWORKINTERFACE)
+        
+        if (CpDefs.WatchdogWaitNetworkInterface):
+            # Start out waiting for network interface
+            self.enter_state(CpInetState.WAITNETWORKINTERFACE, CpInetTimeout.WAITNETWORKINTERFACE)
+        else:
+            # Start out initializing (Use Case for testing without watchdog)
+            self.enter_state(CpInetState.INITIALIZE, CpInetTimeout.INITIALIZE)
+            
         while not self.closing:
             if(self.STATEFUNC != 0):
                 self.STATEFUNC()
@@ -203,8 +208,14 @@ class CpInet(threading.Thread):
             self.inetError.InitializeErrors = 0
             # Handle Max Errors
             # TODO: TEST BEFORE PROD
-            self.watchdog_set_status(CpWatchdogStatus.Error)
-            self.enter_state(CpInetState.WAITNETWORKINTERFACE, CpInetTimeout.WAITNETWORKINTERFACE)
+            
+            # Check to see if we need to update watchdog
+            # if not we are in test mode and just want to remain in
+            # init_socket indefinately
+            if (CpDefs.WatchdogWaitNetworkInterface):
+                self.watchdog_set_status(CpWatchdogStatus.Error)
+                self.enter_state(CpInetState.WAITNETWORKINTERFACE, CpInetTimeout.WAITNETWORKINTERFACE)
+                
             return False 
         
         # Allow some settle time before trying again
