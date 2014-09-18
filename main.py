@@ -3,7 +3,8 @@ import sys, getopt
 from cpconsole import CpConsole
 from cptaskmanager import CpTaskManager
 from cprf import CpRf
-from cpinet import CpInet
+#from cpinet import CpInet
+from cpinet_v2 import CpInet
 from cpdb import CpDb
 from cpdb import CpDbManager
 from cpdefs import CpDefs

@@ -17,7 +17,10 @@ class CpDefs:
     InetPort = 1337
     InetRoute = "/pings"
     InetPostParams = "POST %s HTTP/1.1\r\ncontent-type:application/json\r\nhost: %s\r\ncontent-length:%d\r\n\r\n%s"
-
+    InetTimeout = 5
+    InetTestMode = True
+    WatchdogFilePath = "/home/root/watchdog/info.txt"
+    
 class CpGpioMap():
     GPIO_CELLENABLE = "P9_12"
     GPIO_CELLRESET = "P9_23"

@@ -66,7 +66,7 @@ class CpWatchdogStatus:
     Success = "1"
     Error = "2"
     
-class CpInet2(threading.Thread):
+class CpInet(threading.Thread):
     
     def __init__(self, inetResponseCallbackFunc=None, *args):
         self._target = self.inet_handler
@@ -402,7 +402,7 @@ class CpInet2(threading.Thread):
             return False
         
         # TODO: REVIEW AND TEST BEFORE PROD
-        with open("info.txt", "r+b") as f: #mmap file
+        with open(CpDefs.WatchdogFilePath, "r+b") as f: #mmap file
             mm = mmap.mmap(f.fileno(), 0)
             
         # Check to see if we have a network interface
@@ -451,12 +451,22 @@ class CpInet2(threading.Thread):
             return False
 
     def watchdog_set_status(self, status):
-        with open("info.txt", "r+b") as f: #mmap file
-            mm = mmap.mmap(f.fileno(), 0)
-        
-        mm[1:2] = status
-        mm.flush()
-        mm.close()
+            
+        try:
+            with open(CpDefs.WatchdogFilePath, "r+b") as f: #mmap file
+                mm = mmap.mmap(f.fileno(), 0)
+            
+            mm[1:2] = status
+            mm.flush()
+            mm.close()
+
+        except IOError, e:         
+            #self.log.logError('watchdog_set_status: failed (%s)')  e.args[0]
+            print 'watchdog_set_status: failed (%s)' % e.args[0]
+        except EnvironmentError, ee:
+            print 'watchdog_set_status: failed (%s)' % ee.args[0]
+        except:
+            print 'watchdog_set_status: failed'
             
             
 def inetDataReceived(data):
@@ -464,7 +474,7 @@ def inetDataReceived(data):
     pass
     
 if __name__ == '__main__':
-    inetThread = CpInet2(inetDataReceived)
+    inetThread = CpInet(inetDataReceived)
     inetThread.start()   
     
     
