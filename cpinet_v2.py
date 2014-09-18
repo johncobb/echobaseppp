@@ -152,8 +152,8 @@ class CpInet(threading.Thread):
         
     def inet_handler(self):
         # Start out initializing socket
-        self.enter_state(CpInetState.INITIALIZE, CpInetTimeout.INITIALIZE)
-        
+        #self.enter_state(CpInetState.INITIALIZE, CpInetTimeout.INITIALIZE)
+        self.enter_state(CpInetState.WAITNETWORKINTERFACE, CpInetTimeout.WAITNETWORKINTERFACE)
         while not self.closing:
             if(self.STATEFUNC != 0):
                 self.STATEFUNC()
@@ -407,7 +407,11 @@ class CpInet(threading.Thread):
             
         # Check to see if we have a network interface
         if (mm[:1] == "1"):
+            print 'inet_waitnetworkinterface: found successful'
             self.enter_state(CpInetState.INITIALIZE, CpInetTimeout.INITIALIZE)
+        else:
+            print 'inet_waitnetworkinterface wait retry 1 sec.'
+            time.sleep(1)
             
         mm.close()
         
