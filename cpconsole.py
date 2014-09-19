@@ -25,6 +25,7 @@ class CpConsole(threading.Thread):
         self.taskMgr.getRfThread().shutdown_thread()
         self.taskMgr.getInetThread().shutdown_thread()
         self.taskMgr.getDbThread().shutdown_thread()
+        self.taskMgr.getLedThread().shutdown_thread()
         self.taskMgr.shutdown_thread()
         
         
@@ -36,7 +37,10 @@ class CpConsole(threading.Thread):
             time.sleep(.5)
         while(self.taskMgr.getDbThread().isAlive()):
             print 'waiting for CpDbManager shutdown isAlive=', self.taskMgr.getDbThread().isAlive()
-            time.sleep(.5)     
+            time.sleep(.5)
+        while(self.taskMgr.getLedThread().isAlive()):
+            print 'waiting for CpLed shutdown isAlive=', self.taskMgr.getLedThread().isAlive()
+            time.sleep(.5)   
         while(self.taskMgr.isAlive()):
             print 'waiting for CpTaskManager shutdown isAlive=', self.taskMgr.isAlive()
             time.sleep(.5)
@@ -44,6 +48,7 @@ class CpConsole(threading.Thread):
         print 'waiting for CpRf shutdown isAlive=', self.taskMgr.getRfThread().isAlive()
         print 'waiting for CpInet shutdown isAlive=', self.taskMgr.getInetThread().isAlive()
         print 'waiting for CpDbManager shutdown isAlive=', self.taskMgr.getDbThread().isAlive()
+        print 'waiting for CpLed shutdown isAlive=', self.taskMgr.getLedThread().isAlive()
         print 'waiting for CpTaskManager shutdown isAlive=', self.taskMgr.isAlive()
 
         self.__lock.acquire()

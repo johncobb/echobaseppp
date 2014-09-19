@@ -112,6 +112,9 @@ class CpTaskManager(threading.Thread):
     
     def getInetThread(self):
         return self.inetThread
+    
+    def getLedThread(self):
+        return self.ledThread
        
     def enqueue_message(self, cmd):
         try:
