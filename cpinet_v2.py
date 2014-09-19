@@ -134,7 +134,7 @@ class CpInet(threading.Thread):
         self.timestamp = datetime.now()
         self.timeout = timeout
         print 'enter_state: (', self.lookupStateName(self.current_state), ')'
-        # Set the led pattern om setStateChangedCallback
+        # Set the led pattern via state_cb
         # Hack if statement to prevent state_cb from being called before
         # setStateChangedCallback is set by cptaskmanager
         if (self.state_cb == None):
