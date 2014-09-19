@@ -50,13 +50,13 @@ class CpTaskManager(threading.Thread):
         threading.Thread.__init__(self)
     
     def stateChangedCallback(self, state): 
-        if(state == CpSystemState.STARTUP):
+        if(state == CpSystemState.WAITNETWORKINTERFACE):
             self.ledThread.startup()
-        elif(state == CpSystemState.CONNECTING):
+        elif(state == CpSystemState.CONNECT):
             self.ledThread.connecting()
         elif(state == CpSystemState.IDLE):
             self.ledThread.idle()
-        elif(state == CpSystemState.SENDING):
+        elif(state == CpSystemState.SEND):
             self.ledThread.sending()
         elif(state == CpSystemState.SLEEP):
             self.ledThread.sleep()

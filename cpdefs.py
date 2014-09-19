@@ -1,6 +1,7 @@
 class CpDefs:
     Debug = True
     LogVerbose = True
+    LogToStdOut = False
     LogPacketLevel = False
     Apn = "c1.korem2m.com"
     ApnUserid = ""
@@ -32,8 +33,10 @@ class CpGpioMap():
     GPIO_LED2 = "P8_15"
     
 class CpSystemState:
-    STARTUP = 0
-    CONNECTING = 1
-    SENDING = 2
-    IDLE = 3
+    INITIALIZE = 0
+    IDLE = 1
+    CONNECT = 2
+    CLOSE = 3
     SLEEP = 4
+    SEND = 5
+    WAITNETWORKINTERFACE = 6

@@ -11,12 +11,13 @@ from datetime import datetime
 #import Adafruit_BBIO.GPIO as GPIO
 
 class CpInetState:
-    INITIALIZED = 0
+    INITIALIZE = 0
     IDLE = 1
-    CONNECTED = 2
-    CLOSED = 3
+    CONNECT = 2
+    CLOSE = 3
     SLEEP = 4
-    WAITNETWORKINTERFACE = 5
+    SEND = 5
+    WAITNETWORKINTERFACE = 6
                       
 class CpInetResultCode:
     RESULT_UNKNOWN = 0
@@ -86,6 +87,8 @@ class CpInet(threading.Thread):
             return "CLOSED"
         elif(index == 4):
             return "SLEEP"  
+        elif(index == 5):
+            return "WAITNETWORKINTERFACE"
                    
     def enter_state(self, new_state, timeout):
         print 'enter_state: ', self.lookupStateName(new_state)
@@ -212,7 +215,7 @@ class CpInet(threading.Thread):
                     time.sleep(.05)
                     continue
             elif(self.state == CpInetState.INITIALIZED):
-                self.toggleState(CpSystemState.CONNECTING)
+                self.toggleState(CpSystemState.CONNECT)
                 if self.inet_connect() == True:
                     self.enter_state(CpInetState.CONNECTED, 30)
                     
@@ -228,7 +231,7 @@ class CpInet(threading.Thread):
                     self.enter_state(CpInetState.IDLE, 30)
                     continue
                 if (self.commands.qsize() > 0):
-                    self.toggleState(CpSystemState.SENDING)
+                    self.toggleState(CpSystemState.SEND)
                     self.reset_state_timeout(30)
                     print 'Command found'
                     packet = self.commands.get(True)

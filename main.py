@@ -60,8 +60,8 @@ def start_threads(runas):
     print 'Echobase 1.0 starting services...'
     print 'mode=', runas
     
-    print 'Wait 30 seconds for network to startup'
-    time.sleep(30)
+    #print 'Wait 30 seconds for network to startup'
+    #time.sleep(30)
     print 'Done waiting...'
     rfThread = CpRf(rfDataReceived)
     rfThread.start()
@@ -101,7 +101,7 @@ def start_threads(runas):
             
 if __name__ == '__main__':
     
-    if CpDefs.LogVerbose == True:
+    if CpDefs.LogToStdOut == True:
         # Route standard out to a log file
         log = CpLog()
         log.logStdOut()
