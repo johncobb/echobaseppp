@@ -80,7 +80,7 @@ class CpTaskManager(threading.Thread):
         rf_encoded = self.rfThread.queue_get()
         
         # Sanity check
-        if(len(rf_encoded) == CpDefs.RfMsgLen):
+        if(len(rf_encoded) >= CpDefs.RfMsgLen):
             
             # Decode cobs encoding
             rf_decoded = cpcobs.decode(rf_encoded)

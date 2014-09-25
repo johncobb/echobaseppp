@@ -10,7 +10,7 @@ class CpDefs:
     ModemPort = "/dev/ttyO4"
     ModemBaudrate = 115200
     #RfPort = "/dev/tty.usbserial-FTELSNMW"
-    RfMsgLen = 43
+    RfMsgLen = 37
     RfPort = "/dev/ttyO2"
     RfBaudrate = 38400
     PurgeDbOnStartup = True

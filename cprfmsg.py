@@ -31,7 +31,7 @@ class CpRfMsg():
         self.size = ord(data[28])
         self.battery = (ord(data[29])) + (ord(data[30])<<8) + (ord(data[31])<<16) + (ord(data[32])<<24)
         self.temperature = (ord(data[33])) + (ord(data[34])<<8) + (ord(data[35])<<16) + (ord(data[36])<<24)
-        self.light = (ord(data[37])) + (ord(data[38])<<8) + (ord(data[39])<<16) + (ord(data[40])<<24)
+        #self.light = (ord(data[37])) + (ord(data[38])<<8) + (ord(data[39])<<16) + (ord(data[40])<<24)
         
        
     def toJson(self):
