@@ -41,24 +41,14 @@ class CpRf(threading.Thread):
         self.rfBusy = False
         self.rfResult = CpRfResult()
         self.rfToken = ""
+        # Used to find the first 0x00 in the byte stream
+        # Once found ignore that message and continue processing
+        # onto the next 0x00 found. This is our first full message
+        self.first_zero_found = False
         self.ser = serial.Serial(CpDefs.RfPort, baudrate=CpDefs.RfBaudrate, parity='N', stopbits=1, bytesize=8, xonxoff=0, rtscts=0)
         threading.Thread.__init__(self)
         
-        # Note modem_set_autoctctx can be tricky when trying to call activate context
-        # Activate context will throw an error if modem_set_activatecontext is called manually
-        '''
-        self.fmap = {0:self.modem_set_interface,
-                     1:self.modem_set_msg_format,
-                     2:self.modem_set_band,
-                     3:self.modem_set_context,
-                     4:self.modem_set_user_id,
-                     5:self.modem_set_password,
-                     6:self.modem_set_skipescape,
-                     7:self.modem_set_socket_config,
-                     8:self.modem_set_autoactctx,
-                     9:0}
-        '''
-        
+      
     def run(self):
         self._target(*self._args)
         
@@ -67,8 +57,21 @@ class CpRf(threading.Thread):
         self.__lock.acquire()
         self.closing = True
         self.__lock.release()
+        
+        
+        # Wait for rf_handler to stop
+        # Allow approx 5 sec. before forcing close on serial
+        for i in range (0, 10):
+            if(self.rfBusy):
+                time.sleep(.5)
+            else:
+                break
+            
         if(self.ser.isOpen()):
-            self.ser.close()
+            try:
+                self.ser.close()
+            except Exception, e:
+                print "CpRf::shutdown_thread ERROR: ", e
     
     def rf_send(self, cmd):
         print 'sending rf command ', cmd
@@ -77,8 +80,7 @@ class CpRf(threading.Thread):
         self.ser.write(cmd)
         #self.__lock.release()
     
-    first_zero_found = False
-    
+
     
     def rf_handler(self):
         tmp_buffer = ""
@@ -88,6 +90,8 @@ class CpRf(threading.Thread):
         
         self.ser.open()
         
+        self.rfBusy = True
+        
         while not self.closing:
             
             if (self.commands.qsize() > 0):
@@ -96,39 +100,33 @@ class CpRf(threading.Thread):
                 self.rf_send(rf_command)
                 continue
             
-            #if(self.ser.outWaiting() > 0):
-                #print 'modem.outWaiting=', self.ser.outWaiting()
-            
-            #self.__lock.acquire()
+            # While we have serial data process the buffer
             while(self.ser.inWaiting() > 0):
+                # Sanity check for tight loop processing
+                if(self.closing):
+                    break
+                
                 #print 'rf has data!!!'
                 tmp_char = self.ser.read(1)
                 #print tmp_char.encode('hex')
-                #if(tmp_char == '\r'):
                 if(tmp_char.encode('hex') == '00'):
-                    #self.data_buffer.put(tmp_buffer, block=True, timeout=1)
-                    #result = self.rf_parse_result(tmp_buffer)
-                    #print 'received ', tmp_buffer.encode('hex')
-                    # Make sure we received something worth processing
-                    #if(result.ResultCode > CpRfResultCode.RESULT_UNKNOWN):
-                        #print 'known result code', result
                     if(self.rfResponseCallbackFunc != None):
                         #self.rfResponseCallbackFunc(result)
                         if(self.first_zero_found == True):
-                            #self.data_buffer.put(tmp_buffer, block=True, timeout=1)
-                            self.enqueue_rf(tmp_buffer)
-                            #self.rfResponseCallbackFunc(tmp_buffer)
-                            self.rfBusy = False
+                            # Sanity check on the message length
+                            if(len(tmp_buffer) >= CpDefs.RfMsgLen):
+                                self.enqueue_rf(tmp_buffer)
+                                
                         else:
                             self.first_zero_found = True
-                            
-                    #print 'rfresponse ', tmp_buffer
+                    # Reset tmp_buffer       
                     tmp_buffer= ""
                 else:
                     tmp_buffer += tmp_char
-                    #tmp_buffer += tmp_char.encode('hex')
-            #self.__lock.release()
+
             time.sleep(.005)
+            
+        self.rfBusy = False
 
     def enqueue_rf(self, rf):
         try:
@@ -204,47 +202,10 @@ class CpRf(threading.Thread):
     
     def rf_init(self):
         pass
-        '''
-        print 'Setting up UART1...'
-        UART.setup("UART1")
-        print 'Setting up UART2...'
-        UART.setup("UART2")
-        print 'Setting up UART4...'
-        UART.setup("UART4")
-        print 'Setting up UART5...'
-        UART.setup("UART5")
-        
-    
-        print 'Initializing GPIO(s)'
-        
-        GPIO.setup("P9_12", GPIO.OUT) #CELL_ENABLE
-        GPIO.setup("P9_23", GPIO.OUT) #CELL_RESET
-        GPIO.setup("P8_12", GPIO.OUT) #CELL_ONOFF
-        
-        GPIO.output("P9_12", GPIO.LOW)
-        GPIO.output("P9_23", GPIO.LOW)
-        GPIO.output("P8_12", GPIO.LOW)
-        
-        time.sleep(3)
-        
-        print 'Setting CELL_ON/OFF HIGH'
-        GPIO.output("P8_12", GPIO.HIGH)
-        time.sleep(5)
-        print 'Wait (5)s...'
-        print 'Setting CELL_ON/OFF LOW'
-        GPIO.output("P8_12", GPIO.LOW)
-        '''
+
     
     def rf_reset(self):
-        
-        '''
-        print 'Setting CELL_ON/OFF HIGH'
-        GPIO.output("P8_12", GPIO.HIGH)
-        time.sleep(5)
-        print 'Wait (5)s...'
-        print 'Setting CELL_ON/OFF LOW'
-        GPIO.output("P8_12", GPIO.LOW)
-        '''
+        pass
 
  
     def rf_send_at(self, callback):

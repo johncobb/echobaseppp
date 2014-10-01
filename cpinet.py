@@ -52,8 +52,8 @@ class CpInet(threading.Thread):
         self._args = args
         self.__lock = threading.Lock()
         self.closing = False # A flag to indicate thread shutdown
-        self.commands = Queue.Queue(5)
-        self.data_buffer = Queue.Queue(128)
+        self.commands = Queue.Queue(32)
+        #self.data_buffer = Queue.Queue(128)
         self.inet_timeout = 0
         self.inetResponseCallbackFunc = inetResponseCallbackFunc
         self.inetBusy = False
@@ -289,7 +289,7 @@ class CpInet(threading.Thread):
             self.commands.put(packet, block=True, timeout=1)
         except:
             self.__lock.acquire()
-            print "The Rf queue is full"
+            print "CpInet commands queue is full"
             self.__lock.release()
 
     def set_timeout(self, timeout):

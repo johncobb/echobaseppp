@@ -1,4 +1,7 @@
 import json
+import base64
+from datetime import datetime
+
 
 
 # http://stackoverflow.com/questions/1458450/python-serializable-objects-json    
@@ -10,18 +13,15 @@ class CpEncoder(json.JSONEncoder):
         
         return obj.__dict__
 
-
-# 43 Byte message structure
-#class AppMessage():
-#class AppMessage(object, data):
+# RfMsgLen Byte message structure
 class CpRfMsg():
     def __init__(self, data):
+        self.raw = data
         self.messageType = ord(data[0])
         self.nodeType = ord(data[1])
         self.extAddr = (ord(data[2])) + (ord(data[3])<<8) + (ord(data[4])<<16) + (ord(data[5])<<24) + (ord(data[6])<<32) + (ord(data[7])<<40) + (ord(data[8])<<48) + (ord(data[9])<<56)
         self.shortAddr = (ord(data[10])) + (ord(data[11])<<8)
-        self.softVersion = (ord(data[12])) + (ord(data[13])<<8) + (ord(data[14])<<16) + (ord(data[15])<<24)
-        self.channelMask = (ord(data[16])) + (ord(data[17])<<8) + (ord(data[18])<<16) + (ord(data[19])<<24)
+        self.routerAddr = (ord(data[12])) + (ord(data[13])<<8) + (ord(data[14])<<16) + (ord(data[15])<<24) +(ord(data[16])<<32) + (ord(data[17])<<40) + (ord(data[18])<<48) + (ord(data[19])<<56)
         self.panId = (ord(data[20])) + (ord(data[21])<<8)
         self.workingChannel = ord(data[22])
         self.parentShortAddr = (ord(data[23])) + (ord(data[24])<<8)
@@ -33,49 +33,36 @@ class CpRfMsg():
         self.temperature = (ord(data[33])) + (ord(data[34])<<8) + (ord(data[35])<<16) + (ord(data[36])<<24)
         #self.light = (ord(data[37])) + (ord(data[38])<<8) + (ord(data[39])<<16) + (ord(data[40])<<24)
         
-       
     def toJson(self):
         packet = json.dumps(self, cls=CpEncoder)
         return packet
+    
+    def toCustomJson(self):
+        packet = "['%s']" % self.raw
         
-        '''
-        self.messageType = 0
-        self.nodeType = 0
-        self.shortAddr = 0
-        self.softVersion = 0
-        self.channelMask = 0
-        self.panId = 0
-        self.workingChannel = 0
-        self.parentShortAddr = 0
-        self.lqi = 0
-        self.rssi = 0
-        self.type = 0
-        self.size = 0
-        self.battery = 0
-        self.temperature = 0
-        self.light = 0
-        self.cs = 0
-        self.hydrate(data)
-        '''
-        #self.hydrate(self.data)
-    '''
-    def hydrate(self, data):
-        msg = AppMessage()
-        msg.messageType = ord(data[0])
-        msg.nodeType = ord(data[1])
-        msg.extAddr = (ord(data[2])) + (ord(data[3])<<8) + (ord(data[4])<<16) + (ord(data[5])<<24) + (ord(data[6])<<32) + (ord(data[7])<<40) + (ord(data[8])<<48) + (ord(data[9])<<56)
-        msg.shortAddr = (ord(data[10])) + (ord(data[11])<<8)
-        msg.softVersion = (ord(data[12])) + (ord(data[13])<<8) + (ord(data[14])<<16) + (ord(data[15])<<24)
-        msg.channelMask = (ord(data[16])) + (ord(data[17])<<8) + (ord(data[18])<<16) + (ord(data[19])<<24)
-        msg.panId = (ord(data[20])) + (ord(data[21])<<8)
-        msg.workingChannel = ord(data[22])
-        msg.parentShortAddr = (ord(data[23])) + (ord(data[24])<<8)
-        msg.lqi = ord(data[25])
-        msg.rssi = ord(data[26])
-        msg.type = ord(data[27])
-        msg.size = ord(data[28])
-        msg.battery = (ord(data[29])) + (ord(data[30])<<8) + (ord(data[31])<<16) + (ord(data[32])<<24)
-        msg.temperature = (ord(data[33])) + (ord(data[34])<<8) + (ord(data[35])<<16) + (ord(data[36])<<24)
-        msg.light = (ord(data[37])) + (ord(data[38])<<8) + (ord(data[39])<<16) + (ord(data[40])<<24)
-        return msg
-    '''
+        return packet
+    
+    def toCustomJsonBase64(self):
+        
+        encoded = base64.b64encode(self.raw)
+        
+        packet = "['%s']" % encoded
+        
+        return packet   
+        
+class CpRfMsgHeader():
+    def __init__(self, data):
+        self.messageType = ord(data[0])
+        self.extAddr = (ord(data[2])) + (ord(data[3])<<8) + (ord(data[4])<<16) + (ord(data[5])<<24) + (ord(data[6])<<32) + (ord(data[7])<<40) + (ord(data[8])<<48) + (ord(data[9])<<56)
+        self.routerAddr = (ord(data[12])) + (ord(data[13])<<8) + (ord(data[14])<<16) + (ord(data[15])<<24) +(ord(data[16])<<32) + (ord(data[17])<<40) + (ord(data[18])<<48) + (ord(data[19])<<56)
+        # CompositeId is a combination of extAddr and routerAddr
+        self.compAddress = (ord(data[2])) + (ord(data[3])<<8) + (ord(data[4])<<16) + (ord(data[5])<<24) + (ord(data[6])<<32) + (ord(data[7])<<40) + (ord(data[8])<<48) + (ord(data[9])<<56) + (ord(data[12])) + (ord(data[13])<<64) + (ord(data[14])<<72) + (ord(data[15])<<80) +(ord(data[16])<<88) + (ord(data[17])<<96) + (ord(data[18])<<104) + (ord(data[19])<<112)
+        self.timestamp = datetime.now()
+        
+        
+# TODO: RESEARCH INHERITANCE MODEL
+class CpRfMsgExt(CpRfMsg):
+    def __init__(self, data):
+        CpRfMsg.__init__(self, data)
+        self.raw = data
+        

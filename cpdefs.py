@@ -1,3 +1,9 @@
+class CpEncoding:
+    CpRaw = 0
+    CpJson = 1
+    CpJsonCustom = 2
+    CpJsonCustomBase64 = 3
+
 class CpDefs:
     Debug = True
     LogVerbose = True
@@ -10,19 +16,25 @@ class CpDefs:
     ModemPort = "/dev/ttyO4"
     ModemBaudrate = 115200
     #RfPort = "/dev/tty.usbserial-FTELSNMW"
+    RfMsgThrottleTimeout = 5
     RfMsgLen = 37
     RfPort = "/dev/ttyO2"
     RfBaudrate = 38400
     PurgeDbOnStartup = True
     VacuumDbOnStartup = True
-    InetHost = "appserver05.cphandheld.com"
-    InetPort = 1337
-    InetRoute = "/pings"
+    #InetHost = "appserver05.cphandheld.com"
+    #InetPort = 1337
+    #InetRoute = "/pings"
+    InetHost = "unison-alt.cphandheld.com"
+    InetPort = 80
+    InetRoute = "/api/bitstorm/ping"
     InetPostParams = "POST %s HTTP/1.1\r\ncontent-type:application/json\r\nhost: %s\r\ncontent-length:%d\r\n\r\n%s"
     InetTimeout = 5
-    InetTestMode = True
     WatchdogFilePath = "/home/root/watchdog/info.txt"
     WatchdogWaitNetworkInterface = True
+    Encoding = CpEncoding.CpJsonCustomBase64
+
+    
     
 class CpGpioMap():
     GPIO_CELLENABLE = "P9_12"

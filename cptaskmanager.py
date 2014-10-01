@@ -5,8 +5,10 @@ import json
 import cpcobs
 import cpdb
 import binascii
+from datetime import datetime
 from cpdb import CpDb
 from cpdb import CpDbManager
+from cprfmsg import CpRfMsgHeader
 from cprfmsg import CpRfMsg
 from cprfmsg import CpEncoder
 from cpdefs import CpSystemState
@@ -47,6 +49,7 @@ class CpTaskManager(threading.Thread):
         self.inetThread = inetThread
         self.inetThread.setStateChangedCallback(self.stateChangedCallback)
         self.dbThread = dbThread
+        self.dctMessages = {}
         threading.Thread.__init__(self)
     
     def stateChangedCallback(self, state): 
@@ -79,7 +82,7 @@ class CpTaskManager(threading.Thread):
         
         rf_encoded = self.rfThread.queue_get()
         
-        # Sanity check
+        # TODO: Sanity check (Redundant: checked in cprf.py)
         if(len(rf_encoded) >= CpDefs.RfMsgLen):
             
             # Decode cobs encoding
@@ -92,18 +95,69 @@ class CpTaskManager(threading.Thread):
             
             print 'Queued Message Received!!!'
             
-            self.dbThread.enqueue_record(rf_decoded)
+            #self.handleNetworkThrottlingMacAddress(rf_decoded)
+            self.handleNetworkThrottlingCompositeAddress(rf_decoded)
             
-            #msg = CpRfMsg(rf_decoded)
-            
-            #self.db.updateRecord(msg.shortAddr, binascii.hexlify(rf_data))
-            #self.db.updateRecord(msg.shortAddr, binascii.hexlify(rf_decoded))
-            
-            
-            #packet = msg.toJson()
-            #self.inetThread.enqueue_packet(packet)
-            #self.inetThread.enqueue_packet(msg.toJson()) 
     
+    # Throttle network traffic based upon the tag's extAddr (Mac Address)
+    # This keeps messages from constantly being reported to the server
+    def handleNetworkThrottlingMacAddress(self, rf_decoded):
+        
+            # NEW CODE TO THROTTLE NETWORK TRAFFIC
+            
+            # We just need to load the header to store in the dictionary
+            # this will cut down on the amount of memory used when searching
+            # for tags
+            msg = CpRfMsgHeader(rf_decoded)
+            
+            if(msg.extAddr in self.dctMessages):
+                # We found the mac address in the dictionary
+                if((datetime.now() - self.dctMessages[msg.extAddr].timestamp).seconds >= CpDefs.RfMsgThrottleTimeout):
+                    # Update the timestamp for the message in the dictionary
+                    self.dctMessages[msg.extAddr].timestamp = datetime.now()
+                    self.dbThread.enqueue_record(rf_decoded)
+                    print 'SENDING MESSAGE AFTER TIMEOUT'
+                    
+            else:
+                print 'NEW MESSAGE RECEIVED'
+                # Add the new message to the dictionary
+                self.dctMessages[msg.extAddr] = msg
+                # Enqueue the message for sending
+                self.dbThread.enqueue_record(rf_decoded)
+                
+            # END NEW CODE TO THROTTLE NETWORK TRAFFIC
+            
+    # Throttle network traffic based upon a composite key defined by extAddr  and routerAddr
+    # This allows tag messages that have been reported via different router end points to 
+    # bypass the RfMsgThrottleTimeout and be sent to the server
+    def handleNetworkThrottlingCompositeAddress(self, rf_decoded):
+        
+            # NEW CODE TO THROTTLE NETWORK TRAFFIC
+            
+            # We just need to load the header to store in the dictionary
+            # this will cut down on the amount of memory used when searching
+            # for tags
+            msg = CpRfMsgHeader(rf_decoded)
+            
+            # Check for Composite Address (extAddr + routerAddr)
+            if(msg.compAddress in self.dctMessages):
+                # We found the mac address in the dictionary
+                if((datetime.now() - self.dctMessages[msg.compAddress].timestamp).seconds >= CpDefs.RfMsgThrottleTimeout):
+                    # Update the timestamp for the message in the dictionary
+                    self.dctMessages[msg.compAddress].timestamp = datetime.now()
+                    self.dbThread.enqueue_record(rf_decoded)
+                    print 'SENDING MESSAGE AFTER TIMEOUT'
+                    
+            else:
+                print 'NEW MESSAGE RECEIVED'
+                # Add the new message to the dictionary
+                self.dctMessages[msg.compAddress] = msg
+                # Enqueue the message for sending
+                self.dbThread.enqueue_record(rf_decoded)
+                
+            # END NEW CODE TO THROTTLE NETWORK TRAFFIC
+                
+        
     def getRfThread(self):
         return self.rfThread
     
@@ -121,7 +175,7 @@ class CpTaskManager(threading.Thread):
             self.messages.put(cmd, block=True, timeout=1)
         except:
             self.__lock.acquire()
-            print "The queue is full"
+            print "CpTaskManager messages queue is full"
             self.__lock.release()
             
     def shutdown_thread(self):

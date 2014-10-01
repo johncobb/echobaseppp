@@ -26,7 +26,9 @@ class CpInetResultCode:
     RESULT_SCKRECVERROR = 6
     
 class CpInetResponses:
-    TOKEN_HTTPOK = "HTTP/1.1 200 OK"
+    TOKEN_HTTPOK = "HTTP/1.1 200"
+    TOKEN_HTTPACCEPTED = "HTTP/1.1 202"
+    TOKEN_HTTPNORESPONSE = "HTTP/1.1 204"
     TOKEN_HTTPERROR = "ERROR"
     TOKEN_HTTPCONNECT = "CONNECT"
     
@@ -73,8 +75,8 @@ class CpInet(threading.Thread):
         self._args = args
         self.__lock = threading.Lock()
         self.closing = False # A flag to indicate thread shutdown
-        self.commands = Queue.Queue(5)
-        self.data_buffer = Queue.Queue(128)
+        self.commands = Queue.Queue(32)
+        #self.data_buffer = Queue.Queue(128)
         self.inet_timeout = 0
         self.inetResponseCallbackFunc = inetResponseCallbackFunc
         self.inetBusy = False
@@ -291,10 +293,10 @@ class CpInet(threading.Thread):
             result = self.inet_send_packet(packet)
             
             if(result.ResultCode == CpInetResultCode.RESULT_OK):
-                print 'result successful'
+                print 'SEND SUCCESSFUL'
                 self.commands.task_done()
             else:
-                
+                print 'inet_send error: %s' % result.Data
                 self.enqueue_packet(packet)
                 self.handle_inet_send_error()
                 #print 'tasks in queue %d' % self.commands.qsize()
@@ -441,7 +443,7 @@ class CpInet(threading.Thread):
             self.commands.put(packet, block=True, timeout=1)
         except:
             self.__lock.acquire()
-            print "The Rf queue is full"
+            print "CpInet commands queue is full"
             self.__lock.release()
 
     def inet_parse_result(self, result):
@@ -451,6 +453,9 @@ class CpInet(threading.Thread):
         if(result.find(CpInetResponses.TOKEN_HTTPOK) > -1):
             inet_result.Data = result
             inet_result.ResultCode = CpInetResultCode.RESULT_OK
+        elif(result.find(CpInetResponses.TOKEN_HTTPNORESPONSE) > -1):
+            inet_result.Data = result
+            inet_result.ResultCode = CpInetResultCode.RESULT_OK        
         elif(result.find(CpInetResponses.TOKEN_HTTPERROR) > -1):
             inet_result.Data = result
             inet_result.ResultCode = CpInetResultCode.RESULT_ERROR

@@ -10,6 +10,8 @@ import binascii
 import os
 import cpcobs
 from cprfmsg import CpRfMsg
+from cpdefs import CpDefs
+from cpdefs import CpEncoding
 
 
 class CpDbManager(threading.Thread):
@@ -32,8 +34,6 @@ class CpDbManager(threading.Thread):
         
     def task_handler(self):
         
-
-            
         # Initialize database
         self.db.initDb()
         
@@ -48,24 +48,42 @@ class CpDbManager(threading.Thread):
                 # Debug (saving readable tag info)
                 self.db_handler_debug(tag_info)
                 self.db_handler(tag_info)
+                
+                
                 # Production (sending raw bytes)
                 #self.inet_handler(tag_info)
                 # Debug (sending json)
-                self.inet_handler_debug(tag_info)
+                #self.inet_handler_debug(tag_info)
+                self.inet_handler(tag_info)
 
                 self.records.task_done()
             # Let database breathe
             time.sleep(.0005)
             
-            
+    def inet_handler(self, tag_info):
+        
+        # Hydrate the message 
+        msg = CpRfMsg(tag_info)
+        
+        if(CpDefs.Encoding == CpEncoding.CpJson):
+            # Send message as standard JSON object
+            self.inetThread.enqueue_packet(msg.toJson())
+        elif(CpDefs.Encoding == CpEncoding.CpJsonCustom):
+            # Send message as custom JSON object
+            self.inetThread.enqueue_packet(msg.toCustomJson())
+        elif(CpDefs.Encoding == CpEncoding.CpJsonCustomBase64):
+            # Send message as Base64 encoded custom JSON object
+            self.inetThread.enqueue_packet(msg.toCustomJsonBase64())
+        elif(CpDefs.Encoding == CpEncoding.CpRaw):
+            # Send message in raw byte format
+            self.inetThread.enqueue_packet(msg)
+               
+              
     def inet_handler_debug(self, tag_info):
         # Hydrate the message 
         msg = CpRfMsg(tag_info)
         self.inetThread.enqueue_packet(msg.toJson())
     
-    def inet_handler(self, tag_info):
-        # Enqueue message to send to server
-        self.inetThread.enqueue_packet(tag_info)
         
     def db_handler_debug(self, tag_info):
         # Hydrate the message 
