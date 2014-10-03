@@ -48,6 +48,8 @@ class CpRf(threading.Thread):
         self.ser = serial.Serial(CpDefs.RfPort, baudrate=CpDefs.RfBaudrate, parity='N', stopbits=1, bytesize=8, xonxoff=0, rtscts=0)
         threading.Thread.__init__(self)
         
+    def get_queue_depth(self):
+        return self.data_buffer.qsize()
       
     def run(self):
         self._target(*self._args)

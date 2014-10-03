@@ -5,6 +5,7 @@ import socket
 import mmap
 from cpdefs import CpDefs
 from cplog import CpLog
+from cpstats import CpInetStats
 from datetime import datetime
 
 class CpInetState:
@@ -98,6 +99,7 @@ class CpInet(threading.Thread):
         self.waitRetryBackoff = {1:5, 2:15, 3:30}
         #self.waitRetryBackoff = {1:1, 2:2, 3:3} # Test timeouts to speed up testing
         self.stateMaxRetries = 3
+        self.inet_stats = CpInetStats()
         
         self.fmap = {0:self.init_socket,
                      1:self.inet_idle, 
@@ -110,6 +112,15 @@ class CpInet(threading.Thread):
         
         threading.Thread.__init__(self)
     
+    def get_queue_depth(self):
+        return self.commands.qsize()
+    
+    def get_current_state(self):
+        return self.lookupStateName(self.current_state)
+    
+    def get_inet_stats(self):
+        return self.inet_stats
+       
     def setStateChangedCallback(self, callback):
         self.state_cb = callback   
                         
@@ -135,7 +146,10 @@ class CpInet(threading.Thread):
         self.STATEFUNC = self.fmap[self.current_state]
         self.timestamp = datetime.now()
         self.timeout = timeout
+        
+        #if(CpDefs.LogVerboseInet):
         print 'enter_state: (', self.lookupStateName(self.current_state), ')'
+            
         # Set the led pattern via state_cb
         # Hack if statement to prevent state_cb from being called before
         # setStateChangedCallback is set by cptaskmanager
@@ -151,7 +165,10 @@ class CpInet(threading.Thread):
         
     def state_timedout(self):
         if((datetime.now() - self.timestamp).seconds >= self.timeout):
-            print 'state_timeout: (', self.lookupStateName(self.current_state), ')'
+            
+            if(CpDefs.LogVerboseInet):
+                print 'state_timeout: (', self.lookupStateName(self.current_state), ')'
+                
             return True
         else:
             return False
@@ -189,7 +206,10 @@ class CpInet(threading.Thread):
         try:
             self.remoteIp = socket.gethostbyname(self.host)
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            print 'init_socket: successful (%s)' %self.remoteIp
+            
+            if(CpDefs.LogVerboseInet):
+                print 'init_socket: successful (%s)' %self.remoteIp
+                
             self.enter_state(CpInetState.CONNECT, CpInetTimeout.CONNECT)
             return True
         except socket.gaierror:
@@ -210,6 +230,8 @@ class CpInet(threading.Thread):
         
         # If we get this far we received an error
         self.inetError.InitializeErrors += 1
+        # Updated Statistics
+        self.inet_stats.InitErrors += 1
         
         if (self.inetError.InitializeErrors > self.inetError.InitializeMax):
             print 'Max Initialize Errors'
@@ -240,7 +262,10 @@ class CpInet(threading.Thread):
             # New Code for Timeout
             self.sock.settimeout(CpInetDefs.INET_TIMEOUT)
             # End New Code for Timeout
-            print 'inet_connect: successful'
+            
+            if(CpDefs.LogVerboseInet):
+                print 'inet_connect: successful'
+                
             self.enter_state(CpInetState.IDLE, CpInetTimeout.IDLE)
             self.watchdog_set_status(CpWatchdogStatus.Success)
             return True
@@ -259,6 +284,10 @@ class CpInet(threading.Thread):
         # ******** BEGIN ERROR HANDLING ********
         
         self.inetError.ConnectErrors += 1
+        
+        # Updated Statistics
+        self.inet_stats.ConnectErrros += 1
+        
         print 'CONNECT FAILED'
         
         if (self.inetError.ConnectErrors > self.inetError.ConnectMax):
@@ -285,7 +314,10 @@ class CpInet(threading.Thread):
 
         if (self.commands.qsize() > 0):
             self.reset_state_timeout()
-            print 'Command found'
+            
+            if(CpDefs.LogVerboseInet):
+                print 'Command found'
+                
             packet = self.commands.get(True)
             
             
@@ -293,7 +325,14 @@ class CpInet(threading.Thread):
             result = self.inet_send_packet(packet)
             
             if(result.ResultCode == CpInetResultCode.RESULT_OK):
-                print 'SEND SUCCESSFUL'
+                
+                # Updated Statistics
+                self.inet_stats.Sent += 1
+                self.inet_stats.LastSent = time
+        
+                if(CpDefs.LogVerboseInet):
+                    print 'SEND SUCCESSFUL'
+                    
                 self.commands.task_done()
             else:
                 print 'inet_send error: %s' % result.Data
@@ -315,6 +354,10 @@ class CpInet(threading.Thread):
         # ******** BEGIN ERROR HANDLING ********
         
         self.inetError.SendErrors += 1
+        
+        # Updated Statistics
+        self.inet_stats.SendErrors += 1
+        
         print 'SEND FAILED'
         
         if (self.inetError.SendErrors > self.inetError.SendMax):
@@ -339,12 +382,10 @@ class CpInet(threading.Thread):
         
         result = CpInetResultCode()
         
-        print 'inet_send: (',self.remoteIp, ':', self.port, ')'
-        
-        # Logging
-        if CpDefs.LogPacketLevel == True:
+        if(CpDefs.LogVerboseInet):
+            print 'inet_send: (',self.remoteIp, ':', self.port, ')'
             print 'inet_send: ', postData
-        
+          
         # Send the HTTP request
         try:
             byteCount = self.sock.send(postData)
@@ -380,7 +421,10 @@ class CpInet(threading.Thread):
     def inet_idle(self):
         # Check to see if there is a queued message
         if (self.commands.qsize() > 0):
-            print 'inet_idle record found'
+            
+            if(CpDefs.LogVerboseInet):
+                print 'inet_idle record found'
+                
             self.enter_state(CpInetState.SEND,CpInetTimeout.SEND)
             return
             
@@ -439,7 +483,6 @@ class CpInet(threading.Thread):
               
     def enqueue_packet(self, packet):
         try:
-            #self.inetBusy = True
             self.commands.put(packet, block=True, timeout=1)
         except:
             self.__lock.acquire()

@@ -33,6 +33,8 @@ def main(argv):
     
     runas = 'console'
     print "Starting thread main..."
+    print 'startup:', time.strftime("%d/%m/%Y %H:%M:%S")
+    
     try:
         opts, args = getopt.getopt(argv,"hm:",["mode="])
     except getopt.GetoptError:

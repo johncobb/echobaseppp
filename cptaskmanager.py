@@ -13,10 +13,7 @@ from cprfmsg import CpRfMsg
 from cprfmsg import CpEncoder
 from cpdefs import CpSystemState
 from cpdefs import CpDefs
-    
-
-
-
+from cpstats import CpInetStats
 
 def dataReceived(rf_data):
     pass
@@ -25,16 +22,23 @@ def checksum(data):
     cs = 0x00
     
     sentence = data[:-1]
-    print 'sentence: ', sentence.encode('hex')
+    
+    if(CpDefs.LogVerboseTaskMgr):
+        print 'sentence: ', sentence.encode('hex')
+        
     for s in sentence:
         cs ^= ord(s)
-    print 'checksum', cs
+        
+    if(CpDefs.LogVerboseTaskMgr):
+        print 'checksum', cs
     return cs
     
 
 def checksumValid(data):
     cs = checksum(data)
     return (ord(data[len(data)-1]) == cs)
+
+ 
     
 class CpTaskManager(threading.Thread):
 
@@ -50,6 +54,7 @@ class CpTaskManager(threading.Thread):
         self.inetThread.setStateChangedCallback(self.stateChangedCallback)
         self.dbThread = dbThread
         self.dctMessages = {}
+        self.start_time = time.strftime("%d/%m/%Y %H:%M:%S")
         threading.Thread.__init__(self)
     
     def stateChangedCallback(self, state): 
@@ -93,10 +98,14 @@ class CpTaskManager(threading.Thread):
                 print 'Invalid Checksum'
                 return
             
-            print 'Queued Message Received!!!'
+            if(CpDefs.LogVerboseTaskMgr):
+                print 'Queued Message Received!!!'
             
-            #self.handleNetworkThrottlingMacAddress(rf_decoded)
-            self.handleNetworkThrottlingCompositeAddress(rf_decoded)
+            try:
+                #self.handleNetworkThrottlingMacAddress(rf_decoded)
+                self.handleNetworkThrottlingCompositeAddress(rf_decoded)
+            except Exception, e:
+                print "CpTaskManager::handler_rfqueue ERROR: ", e
             
     
     # Throttle network traffic based upon the tag's extAddr (Mac Address)
@@ -116,10 +125,14 @@ class CpTaskManager(threading.Thread):
                     # Update the timestamp for the message in the dictionary
                     self.dctMessages[msg.extAddr].timestamp = datetime.now()
                     self.dbThread.enqueue_record(rf_decoded)
-                    print 'SENDING MESSAGE AFTER TIMEOUT'
+                    
+                    if(CpDefs.LogVerboseTaskMgr):
+                        print 'SENDING MESSAGE AFTER TIMEOUT'
                     
             else:
-                print 'NEW MESSAGE RECEIVED'
+                if(CpDefs.LogVerboseTaskMgr):
+                    print 'NEW MESSAGE RECEIVED'
+                    
                 # Add the new message to the dictionary
                 self.dctMessages[msg.extAddr] = msg
                 # Enqueue the message for sending
@@ -146,10 +159,13 @@ class CpTaskManager(threading.Thread):
                     # Update the timestamp for the message in the dictionary
                     self.dctMessages[msg.compAddress].timestamp = datetime.now()
                     self.dbThread.enqueue_record(rf_decoded)
-                    print 'SENDING MESSAGE AFTER TIMEOUT'
+                    
+                    if(CpDefs.LogVerboseTaskMgr):
+                        print 'SENDING MESSAGE AFTER TIMEOUT'
                     
             else:
-                print 'NEW MESSAGE RECEIVED'
+                if(CpDefs.LogVerboseTaskMgr):
+                    print 'NEW MESSAGE RECEIVED'
                 # Add the new message to the dictionary
                 self.dctMessages[msg.compAddress] = msg
                 # Enqueue the message for sending
@@ -177,6 +193,21 @@ class CpTaskManager(threading.Thread):
             self.__lock.acquire()
             print "CpTaskManager messages queue is full"
             self.__lock.release()
+            
+    def logStats(self):
+        print '#### System Status Report ####'
+        print '## Startup:', self.start_time
+        print '## CpRf.QueueDepth = ', self.getRfThread().get_queue_depth()
+        print '## CpDb.QueueDepth = ', self.getDbThread().get_queue_depth()
+        print '## CpInet.QueueDepth = ', self.getInetThread().get_queue_depth()
+        print '## CpInet.CurrentState = ', self.getInetThread().get_current_state()
+        print '## CpInet.Sent = ', self.getInetThread().get_inet_stats().Sent
+        print '## CpInet.LastSent =', self.getInetThread().get_inet_stats().LastSent.strftime("%d/%m/%Y %H:%M:%S")
+        print '## CpInet.SendErrors = ', self.getInetThread().get_inet_stats().SendErrors
+        print '## CpInet.InitErrors = ', self.getInetThread().get_inet_stats().InitErrors
+        print '## CpInet.ConnectErrors = ', self.getInetThread().get_inet_stats().ConnectErrors
+        print '##', time.strftime("%d/%m/%Y %H:%M:%S")
+        print '#### End System Status Report ####'               
             
     def shutdown_thread(self):
         print 'shutting down CpTaskManager...'

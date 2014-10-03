@@ -1,6 +1,7 @@
 import json
 import base64
 from datetime import datetime
+from cpdefs import CpDefs
 
 
 
@@ -47,6 +48,11 @@ class CpRfMsg():
         encoded = base64.b64encode(self.raw)
         
         packet = "['%s']" % encoded
+        
+        if (CpDefs.LogEncodedMessage):
+            print 'Encoded Packet'
+            print packet
+            print 'End Encoded Packet'
         
         return packet   
         

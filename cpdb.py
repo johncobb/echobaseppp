@@ -32,6 +32,9 @@ class CpDbManager(threading.Thread):
     def run(self):
         self._target(*self._args)
         
+    def get_queue_depth(self):
+        return self.records.qsize()
+        
     def task_handler(self):
         
         # Initialize database
@@ -103,7 +106,7 @@ class CpDbManager(threading.Thread):
             self.records.put(record, block=True, timeout=1)
         except:
             self.__lock.acquire()
-            print "The queue is full"
+            print "The CpDb queue is full"
             self.__lock.release()
             
     def shutdown_thread(self):
@@ -176,7 +179,9 @@ class CpDb():
         
         conn.commit()
         
-        print "updateTable: success";
+        if(CpDefs.LogVerboseRf):
+            print "updateTable: success";
+            
         conn.close()
         
         
@@ -193,7 +198,9 @@ class CpDb():
         
         conn.commit()
         
-        print "updateRecord: success";
+        if(CpDefs.LogVerboseRf):
+            print "updateRecord: success";
+            
         conn.close() 
         
     def updateRecordBlob(self, tagId, tagInfo):
@@ -209,7 +216,9 @@ class CpDb():
         
         conn.commit()
         
-        print "updateRecordBlob: success";
+        if(CpDefs.LogVerboseRf):
+            print "updateRecordBlob: success";
+            
         conn.close()                     
         
     def deleteRecord(self):
@@ -221,7 +230,9 @@ class CpDb():
         
         conn.commit()
         
-        print "Operation completed successfully";
+        if(CpDefs.LogVerboseRf):
+            print "Operation completed successfully";
+            
         conn.close()   
         
     def vacuumDb(self):

@@ -9,6 +9,11 @@ class CpDefs:
     LogVerbose = True
     LogToStdOut = False
     LogPacketLevel = False
+    LogVerboseRf = False
+    LogVerboseDb = False
+    LogVerboseInet = False
+    LogVerboseTaskMgr = False
+    LogEncodedMessage = False
     Apn = "c1.korem2m.com"
     ApnUserid = ""
     ApnPassword = ""
