@@ -1,5 +1,6 @@
 import threading
 import time
+from datetime import datetime
 import Queue
 import socket
 import mmap
@@ -100,6 +101,7 @@ class CpInet(threading.Thread):
         #self.waitRetryBackoff = {1:1, 2:2, 3:3} # Test timeouts to speed up testing
         self.stateMaxRetries = 3
         self.inet_stats = CpInetStats()
+        self.inet_stats.LastSent = time
         
         self.fmap = {0:self.init_socket,
                      1:self.inet_idle, 

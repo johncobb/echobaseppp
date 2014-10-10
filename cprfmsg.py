@@ -32,8 +32,21 @@ class CpRfMsg():
         self.size = ord(data[28])
         self.battery = (ord(data[29])) + (ord(data[30])<<8) + (ord(data[31])<<16) + (ord(data[32])<<24)
         self.temperature = (ord(data[33])) + (ord(data[34])<<8) + (ord(data[35])<<16) + (ord(data[36])<<24)
+        
+        #new code
+        self.count = 1
+        self.compAddress = self.extAddr + self.routerAddr
+        self.timestamp = datetime.now()
+        #/new code
+        
         #self.light = (ord(data[37])) + (ord(data[38])<<8) + (ord(data[39])<<16) + (ord(data[40])<<24)
         
+    def smoothRssi(self):
+        #dctMessages[key].rssi = dctMessages[key].rssi/dctMessages.rssi[key].count
+        self.rssi = self.rssi / self.count
+        # Copy the first 25 bytes, assgin new rssi to 26th byte then copy remaining bytes
+        self.raw = self.raw[:25] + chr(self.rssi) + self.raw[26:]
+    
     def toJson(self):
         packet = json.dumps(self, cls=CpEncoder)
         return packet
@@ -64,7 +77,7 @@ class CpRfMsgHeader():
         # CompositeId is a combination of extAddr and routerAddr
         self.compAddress = (ord(data[2])) + (ord(data[3])<<8) + (ord(data[4])<<16) + (ord(data[5])<<24) + (ord(data[6])<<32) + (ord(data[7])<<40) + (ord(data[8])<<48) + (ord(data[9])<<56) + (ord(data[12])) + (ord(data[13])<<64) + (ord(data[14])<<72) + (ord(data[15])<<80) +(ord(data[16])<<88) + (ord(data[17])<<96) + (ord(data[18])<<104) + (ord(data[19])<<112)
         self.timestamp = datetime.now()
-        
+      
         
 # TODO: RESEARCH INHERITANCE MODEL
 class CpRfMsgExt(CpRfMsg):

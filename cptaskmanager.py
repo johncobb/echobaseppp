@@ -150,30 +150,56 @@ class CpTaskManager(threading.Thread):
             # We just need to load the header to store in the dictionary
             # this will cut down on the amount of memory used when searching
             # for tags
-            msg = CpRfMsgHeader(rf_decoded)
+            msg = CpRfMsg(rf_decoded)
             
             # Check for Composite Address (extAddr + routerAddr)
             if(msg.compAddress in self.dctMessages):
-                # We found the mac address in the dictionary
+                # We found the composite address in the dictionary
+                
+                #check if it is time to send messages
                 if((datetime.now() - self.dctMessages[msg.compAddress].timestamp).seconds >= CpDefs.RfMsgThrottleTimeout):
-                    # Update the timestamp for the message in the dictionary
-                    self.dctMessages[msg.compAddress].timestamp = datetime.now()
-                    self.dbThread.enqueue_record(rf_decoded)
+                    
+                    # handle send messages        
+                    for key in self.dctMessages:
+                        #average rssi and insert into raw data
+                        self.dctMessages[key].smoothRssi()
+                    
+                        #enqueue updated raw data with averaged rssi
+                        self.dbThread.enqueue_record(self.dctMessages[key].raw)
+                        
+                    #empty dictionary
+                    self.dctMessages.clear()
                     
                     if(CpDefs.LogVerboseTaskMgr):
                         print 'SENDING MESSAGE AFTER TIMEOUT'
+                else:
+                    #handle entry update
+                    self.handle_new_message(msg)
                     
             else:
+                #entry not found, create a new entry
                 if(CpDefs.LogVerboseTaskMgr):
                     print 'NEW MESSAGE RECEIVED'
                 # Add the new message to the dictionary
                 self.dctMessages[msg.compAddress] = msg
-                # Enqueue the message for sending
-                self.dbThread.enqueue_record(rf_decoded)
+                
                 
             # END NEW CODE TO THROTTLE NETWORK TRAFFIC
                 
+    def handle_new_message (self, msg):
         
+        #sum rssi values
+        msg.rssi = msg.rssi + self.dctMessages[msg.compAddress].rssi
+    
+        #increment count
+        msg.count = self.dctMessages[msg.compAddress].count + 1
+    
+        #replace entry with new updated entry
+        self.dctMessages[msg.compAddress] = msg
+    
+        #update timestamp
+        self.dctMessages[msg.compAddress].timestamp = datetime.now()
+    
     def getRfThread(self):
         return self.rfThread
     
@@ -202,7 +228,7 @@ class CpTaskManager(threading.Thread):
         print '## CpInet.QueueDepth = ', self.getInetThread().get_queue_depth()
         print '## CpInet.CurrentState = ', self.getInetThread().get_current_state()
         print '## CpInet.Sent = ', self.getInetThread().get_inet_stats().Sent
-        print '## CpInet.LastSent =', self.getInetThread().get_inet_stats().LastSent.strftime("%d/%m/%Y %H:%M:%S")
+        #print '## CpInet.LastSent =', self.getInetThread().get_inet_stats().LastSent.strftime("%d/%m/%Y %H:%M:%S")
         print '## CpInet.SendErrors = ', self.getInetThread().get_inet_stats().SendErrors
         print '## CpInet.InitErrors = ', self.getInetThread().get_inet_stats().InitErrors
         print '## CpInet.ConnectErrors = ', self.getInetThread().get_inet_stats().ConnectErrors
